@@ -1,57 +1,53 @@
 let cards = [];
 
-document.getElementById("imageInput").addEventListener("change", e => {
-  [...e.target.files].forEach(file => createCard(file));
+document.getElementById("input").addEventListener("change", e => {
+  [...e.target.files].forEach(loadImage);
 });
 
-function createCard(file) {
+function loadImage(file) {
   const reader = new FileReader();
   reader.onload = () => {
     const card = document.createElement("div");
     card.className = "card";
 
     const img = document.createElement("img");
+    img.src = reader.result;
+
     img.onload = () => {
       card.cropper = new Cropper(img, { aspectRatio: 1 });
     };
-    img.src = reader.result;
 
-    const controls = document.createElement("div");
-    controls.className = "controls";
+    const cropBtn = makeBtn("Crop", () => crop(card));
 
-    controls.append(
-      btn("Crop", () => crop(card)),
-      btn("Remove BG", () => removeBg(card)),
-      btn("Smooth", () => smooth(card)),
-      brightnessSlider(card),
-      btn("Download", () => download(card))
+    const bright = document.createElement("input");
+    bright.type = "range";
+    bright.min = 0.8;
+    bright.max = 1.3;
+    bright.step = 0.05;
+    bright.value = 1;
+    bright.oninput = () =>
+      img.style.filter = `brightness(${bright.value})`;
+
+    const smoothBtn = makeBtn("Smooth", () =>
+      img.style.filter = "brightness(1.05) blur(0.6px)"
     );
 
-    card.append(img, controls);
-    document.getElementById("imageList").append(card);
+    const bgBtn = makeBtn("Remove BG", () => removeBg(img));
+
+    const downBtn = makeBtn("Download", () => download(img));
+
+    card.append(img, cropBtn, bright, smoothBtn, bgBtn, downBtn);
+    document.getElementById("list").append(card);
     cards.push(card);
   };
   reader.readAsDataURL(file);
 }
 
-function btn(text, fn) {
+function makeBtn(text, fn) {
   const b = document.createElement("button");
   b.innerText = text;
   b.onclick = fn;
   return b;
-}
-
-function brightnessSlider(card) {
-  const r = document.createElement("input");
-  r.type = "range";
-  r.min = 0.8;
-  r.max = 1.3;
-  r.step = 0.05;
-  r.value = 1;
-  r.oninput = () => {
-    card.querySelector("img").style.filter = `brightness(${r.value})`;
-  };
-  return r;
 }
 
 function crop(card) {
@@ -63,28 +59,38 @@ function crop(card) {
   };
 }
 
-function smooth(card) {
-  const img = card.querySelector("img");
-  img.style.filter = "brightness(1.05) blur(0.6px)";
+function autoCropAll() {
+  cards.forEach(crop);
 }
 
-/* Portrait-friendly BG remove (color-based) */
-function removeBg(card) {
-  const img = card.querySelector("img");
-  const c = document.createElement("canvas");
-  const ctx = c.getContext("2d");
+function resizeAll() {
+  const w = +document.getElementById("w").value;
+  const h = +document.getElementById("h").value;
 
+  cards.forEach(card => {
+    const img = card.querySelector("img");
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    c.getContext("2d").drawImage(img, 0, 0, w, h);
+    img.src = c.toDataURL();
+  });
+}
+
+/* SIMPLE portrait BG remove (white background) */
+function removeBg(img) {
+  const c = document.createElement("canvas");
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
+  const ctx = c.getContext("2d");
   ctx.drawImage(img, 0, 0);
 
   const data = ctx.getImageData(0, 0, c.width, c.height);
   const d = data.data;
 
   for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i+1], b = d[i+2];
-    if (r > 200 && g > 200 && b > 200) {
-      d[i+3] = 0; // transparent
+    if (d[i] > 220 && d[i+1] > 220 && d[i+2] > 220) {
+      d[i+3] = 0;
     }
   }
 
@@ -92,38 +98,13 @@ function removeBg(card) {
   img.src = c.toDataURL();
 }
 
-/* GLOBAL */
-
-function autoCropAll() { cards.forEach(crop); }
-function smoothAll() { cards.forEach(smooth); }
-function removeBgAll() { cards.forEach(removeBg); }
-
-function brightnessAll(v) {
-  cards.forEach(c => {
-    c.querySelector("img").style.filter = `brightness(${v})`;
-  });
-}
-
-function resizeAll() {
-  const w = +document.getElementById("w").value;
-  const h = +document.getElementById("h").value;
-
-  cards.forEach(c => {
-    const img = c.querySelector("img");
-    const cv = document.createElement("canvas");
-    cv.width = w;
-    cv.height = h;
-    cv.getContext("2d").drawImage(img, 0, 0, w, h);
-    img.src = cv.toDataURL();
-  });
-}
-
-function download(card) {
+function download(img) {
   const a = document.createElement("a");
-  a.href = card.querySelector("img").src;
+  a.href = img.src;
   a.download = "image.png";
   a.click();
 }
 
-function downloadAll() { cards.forEach(download); }
-function resetAll() { location.reload(); } 
+function downloadAll() {
+  cards.forEach(c => download(c.querySelector("img")));
+}
