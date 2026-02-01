@@ -1,47 +1,38 @@
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f2f2f2;
+  font-family: Arial;
+  background: #eee;
 }
 
-#topBar {
+#top {
   position: sticky;
   top: 0;
-  background: #111;
+  background: #222;
   padding: 10px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  z-index: 100;
 }
 
-#topBar * {
-  padding: 5px;
-  font-size: 14px;
+#top * {
+  margin: 4px;
 }
 
-#imageList {
+#list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 15px;
-  padding: 15px;
+  grid-template-columns: repeat(auto-fill, 260px);
+  gap: 12px;
+  padding: 12px;
 }
 
 .card {
-  background: #fff;
-  padding: 10px;
-  border-radius: 6px;
+  background: white;
+  padding: 8px;
 }
 
 .card img {
   width: 100%;
-  max-height: 300px;
-  object-fit: contain;
 }
 
-.controls {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.card button,
+.card input {
+  width: 100%;
+  margin-top: 4px;
 }
