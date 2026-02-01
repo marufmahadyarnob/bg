@@ -1,16 +1,7 @@
 let cards = [];
-let segmenter = null;
-
-async function loadModel() {
-  segmenter = await window.transformers.pipeline(
-    "image-segmentation",
-    "Xenova/u2net"
-  );
-}
-loadModel();
 
 document.getElementById("imageInput").addEventListener("change", e => {
-  [...e.target.files].forEach(createCard);
+  [...e.target.files].forEach(file => createCard(file));
 });
 
 function createCard(file) {
@@ -20,89 +11,103 @@ function createCard(file) {
     card.className = "card";
 
     const img = document.createElement("img");
+    img.onload = () => {
+      card.cropper = new Cropper(img, { aspectRatio: 1 });
+    };
     img.src = reader.result;
 
     const controls = document.createElement("div");
     controls.className = "controls";
 
-    const cropBtn = btn("Crop", () => crop(card));
-    const bgBtn = btn("Remove BG", () => removeBg(card));
-    const smoothBtn = btn("Smooth", () => smooth(card));
+    controls.append(
+      btn("Crop", () => crop(card)),
+      btn("Remove BG", () => removeBg(card)),
+      btn("Smooth", () => smooth(card)),
+      brightnessSlider(card),
+      btn("Download", () => download(card))
+    );
 
-    const bright = document.createElement("input");
-    bright.type = "range";
-    bright.min = 0.8;
-    bright.max = 1.3;
-    bright.step = 0.05;
-    bright.value = 1;
-    bright.oninput = () => brightness(card, bright.value);
-
-    const dBtn = btn("Download", () => download(card));
-
-    controls.append(cropBtn, bgBtn, smoothBtn, bright, dBtn);
     card.append(img, controls);
     document.getElementById("imageList").append(card);
-
-    card.cropper = new Cropper(img, { aspectRatio: 1 });
     cards.push(card);
   };
   reader.readAsDataURL(file);
 }
 
-function btn(t, f) {
+function btn(text, fn) {
   const b = document.createElement("button");
-  b.innerText = t;
-  b.onclick = f;
+  b.innerText = text;
+  b.onclick = fn;
   return b;
 }
 
-function crop(card) {
-  const c = card.cropper.getCroppedCanvas();
-  card.querySelector("img").src = c.toDataURL();
-  card.cropper.destroy();
-  card.cropper = new Cropper(card.querySelector("img"), { aspectRatio: 1 });
+function brightnessSlider(card) {
+  const r = document.createElement("input");
+  r.type = "range";
+  r.min = 0.8;
+  r.max = 1.3;
+  r.step = 0.05;
+  r.value = 1;
+  r.oninput = () => {
+    card.querySelector("img").style.filter = `brightness(${r.value})`;
+  };
+  return r;
 }
 
-function brightness(card, v) {
-  card.querySelector("img").style.filter = `brightness(${v})`;
+function crop(card) {
+  const canvas = card.cropper.getCroppedCanvas();
+  card.cropper.destroy();
+  card.querySelector("img").src = canvas.toDataURL();
+  card.querySelector("img").onload = () => {
+    card.cropper = new Cropper(card.querySelector("img"), { aspectRatio: 1 });
+  };
 }
 
 function smooth(card) {
-  card.querySelector("img").style.filter += " blur(0.6px)";
+  const img = card.querySelector("img");
+  img.style.filter = "brightness(1.05) blur(0.6px)";
 }
 
-async function removeBg(card) {
-  if (!segmenter) return alert("Model loading… wait");
-
+/* Portrait-friendly BG remove (color-based) */
+function removeBg(card) {
   const img = card.querySelector("img");
-  const res = await segmenter(img.src);
-  const mask = res[0].mask;
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
 
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
-  canvas.width = w;
-  canvas.height = h;
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  ctx.drawImage(img, 0, 0);
 
-  const base = new Image();
-  base.src = img.src;
-  await base.decode();
+  const data = ctx.getImageData(0, 0, c.width, c.height);
+  const d = data.data;
 
-  ctx.drawImage(base, 0, 0);
-  const data = ctx.getImageData(0, 0, w, h);
-  const m = mask.data;
-
-  for (let i = 0; i < m.length; i++) {
-    if (m[i] < 128) data.data[i * 4 + 3] = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    if (r > 200 && g > 200 && b > 200) {
+      d[i+3] = 0; // transparent
+    }
   }
+
   ctx.putImageData(data, 0, 0);
-  img.src = canvas.toDataURL();
+  img.src = c.toDataURL();
+}
+
+/* GLOBAL */
+
+function autoCropAll() { cards.forEach(crop); }
+function smoothAll() { cards.forEach(smooth); }
+function removeBgAll() { cards.forEach(removeBg); }
+
+function brightnessAll(v) {
+  cards.forEach(c => {
+    c.querySelector("img").style.filter = `brightness(${v})`;
+  });
 }
 
 function resizeAll() {
   const w = +document.getElementById("w").value;
   const h = +document.getElementById("h").value;
+
   cards.forEach(c => {
     const img = c.querySelector("img");
     const cv = document.createElement("canvas");
@@ -113,11 +118,6 @@ function resizeAll() {
   });
 }
 
-function autoCropAll() { cards.forEach(crop); }
-function smoothAll() { cards.forEach(smooth); }
-function removeBgAll() { cards.forEach(removeBg); }
-function brightnessAll(v) { cards.forEach(c => brightness(c, v)); }
-
 function download(card) {
   const a = document.createElement("a");
   a.href = card.querySelector("img").src;
@@ -126,4 +126,4 @@ function download(card) {
 }
 
 function downloadAll() { cards.forEach(download); }
-function resetAll() { location.reload(); }
+function resetAll() { location.reload(); } 
