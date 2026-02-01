@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Portrait Batch Editor</title>
+
+<link rel="stylesheet" href="https://unpkg.com/cropperjs/dist/cropper.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="topBar">
+  <input type="file" id="imageInput" multiple accept="image/*">
+
+  <button onclick="autoCropAll()">Auto Crop All</button>
+  <button onclick="removeBgAll()">Remove BG All</button>
+  <button onclick="smoothAll()">Smooth All</button>
+
+  <label>Brightness</label>
+  <input type="range" min="0.8" max="1.3" step="0.05" value="1"
+         oninput="brightnessAll(this.value)">
+
+  <input type="number" id="w" placeholder="300">
+  <input type="number" id="h" placeholder="300">
+  <button onclick="resizeAll()">Resize All</button>
+
+  <button onclick="downloadAll()">Download All</button>
+  <button onclick="resetAll()">Reset All</button>
+</div>
+
+<div id="imageList"></div>
+
+<script src="https://unpkg.com/cropperjs/dist/cropper.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
