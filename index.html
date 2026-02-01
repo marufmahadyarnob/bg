@@ -1,29 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Portrait Editor</title>
-
-<link rel="stylesheet" href="https://unpkg.com/cropperjs/dist/cropper.css">
-<link rel="stylesheet" href="style.css">
+<title>Simple Portrait Editor</title>
+<style>
+body { font-family: Arial; background:#eee; margin:0 }
+#top { background:#222; padding:10px; color:white }
+#top * { margin:4px }
+#list { display:grid; grid-template-columns:repeat(auto-fill,260px); gap:10px; padding:10px }
+.card { background:white; padding:8px }
+canvas { width:100%; border:1px solid #ccc }
+button, input { width:100%; margin-top:4px }
+</style>
 </head>
 <body>
 
 <div id="top">
-  <input type="file" id="input" multiple accept="image/*">
-
-  <button onclick="autoCropAll()">Auto Crop All</button>
-
-  <input id="w" type="number" placeholder="300">
-  <input id="h" type="number" placeholder="300">
-  <button onclick="resizeAll()">Resize All</button>
-
+  <input type="file" id="input" multiple>
   <button onclick="downloadAll()">Download All</button>
 </div>
 
 <div id="list"></div>
 
-<script src="https://unpkg.com/cropperjs/dist/cropper.js"></script>
-<script src="script.js"></script>
+<script>
+let cards = [];
+
+document.getElementById("input").onchange = e => {
+  [...e.target.files].forEach(file => loadImage(file));
+};
+
+function loadImage(file){
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img,0,0);
+
+    const card = document.createElement("div");
+    card.className="card";
+
+    const bright = document.createElement("input");
+    bright.type="range"; bright.min=0.8; bright.max=1.3; bright.step=0.05; bright.value=1;
+    bright.oninput=()=>draw();
+
+    const smooth = document.createElement("button");
+    smooth.innerText="Smooth";
+    smooth.onclick=()=>{
+      ctx.filter="blur(0.6px)";
+      draw();
+      ctx.filter="none";
+    };
+
+    const resize = document.createElement("button");
+    resize.innerText="Resize 300x300";
+    resize.onclick=()=>{
+      const tmp=document.createElement("canvas");
+      tmp.width=300; tmp.height=300;
+      tmp.getContext("2d").drawImage(c,0,0,300,300);
+      c.width=300; c.height=300;
+      ctx.drawImage(tmp,0,0);
+    };
+
+    const down=document.createElement("button");
+    down.innerText="Download";
+    down.onclick=()=>download(c);
+
+    function draw(){
+      ctx.clearRect(0,0,c.width,c.height);
+      ctx.filter=`brightness(${bright.value})`;
+      ctx.drawImage(img,0,0,c.width,c.height);
+      ctx.filter="none";
+    }
+
+    card.append(c,bright,smooth,resize,down);
+    document.getElementById("list").append(card);
+    cards.push(c);
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function download(canvas){
+  const a=document.createElement("a");
+  a.href=canvas.toDataURL();
+  a.download="image.png";
+  a.click();
+}
+
+function downloadAll(){
+  cards.forEach(c=>download(c));
+}
+</script>
+
 </body>
 </html>
